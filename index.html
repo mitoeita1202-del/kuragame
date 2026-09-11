@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>クラゲのスイカゲーム</title>
-    <script src="https://cloudflare.com"></script>
     <style>
         body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
         #canvas { border: 2px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); background-color: #111; }
@@ -16,22 +15,61 @@
     <canvas id="canvas" width="800" height="600"></canvas>
 
     <script>
+        // セキュリティ制限に引っかかりにくい最強の配信ルートを順番に試す仕組み
+        const cdnUrls = [
+            "https://jsdelivr.net",
+            "https://cloudflare.com"
+        ];
+
+        async function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = url;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error("Load fail: " + url));
+                document.head.appendChild(script);
+            });
+        }
+
         async function main() {
+            let loaded = false;
+            // 予備ルートを含めてループで読み込みを試す
+            for (let url of cdnUrls) {
+                try {
+                    await loadScript(url);
+                    loaded = true;
+                    break;
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+
+            if (!loaded) {
+                document.getElementById('loading').innerText = "ブラウザのブロックにより起動できません。追跡防止機能をオフにしてください。";
+                return;
+            }
+
             try {
+                // 1. Pythonエンジンの初期化
                 let pyodide = await loadPyodide();
+                
                 document.getElementById('loading').innerText = "ライブラリをロード中...";
+                // 2. 必要な周辺パーツをまとめて読み込む
                 await pyodide.loadPackage(["pygame", "numpy", "opencv-python", "micropip"]);
                 
                 document.getElementById('loading').innerText = "物理演算エンジンを設置中...";
+                // 3. 物理演算のpymunkをインストール
                 await pyodide.runPythonAsync(`
                     import micropip
                     await micropip.install('pymunk')
                 `);
 
                 document.getElementById('loading').innerText = "クラゲ達を呼び出し中...";
+                // 4. main.py の読み込み
                 const response = await fetch('main.py');
                 const code = await response.text();
 
+                // 5. 準備完了！ゲームスタート
                 document.getElementById('loading').style.display = 'none';
                 await pyodide.runPythonAsync(code);
 

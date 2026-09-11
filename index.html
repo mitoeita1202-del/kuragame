@@ -15,10 +15,11 @@
     <canvas id="canvas" width="800" height="600"></canvas>
 
     <script>
-        // セキュリティ制限に引っかかりにくい最強の配信ルートを順番に試す仕組み
+        // Pyodide (v0.26.2) の正しいファイルURL。学校の制限をすり抜けるために複数の大手CDNを用意
         const cdnUrls = [
-            "https://jsdelivr.net",
-            "https://cloudflare.com"
+            "https://cloudflare.com",
+            "https://unpkg.com",
+            "https://jsdelivr.net"
         ];
 
         async function loadScript(url) {
@@ -33,25 +34,32 @@
 
         async function main() {
             let loaded = false;
+            let currentCdnUrl = "";
+
             // 予備ルートを含めてループで読み込みを試す
             for (let url of cdnUrls) {
                 try {
                     await loadScript(url);
                     loaded = true;
+                    currentCdnUrl = url; // 接続に成功したURLを記憶
                     break;
                 } catch (e) {
-                    console.warn(e);
+                    console.warn("CDNの読み込みに失敗。次の候補を試します:", url);
                 }
             }
 
             if (!loaded) {
-                document.getElementById('loading').innerText = "ブラウザのブロックにより起動できません。追跡防止機能をオフにしてください。";
+                document.getElementById('loading').innerText = "ブラウザのブロックまたはネットワーク制限により起動できません。";
                 return;
             }
 
             try {
-                // 1. Pythonエンジンの初期化
-                let pyodide = await loadPyodide();
+                // 成功したCDNのURLからベースとなるディレクトリURL（indexURL）を自動で計算
+                const lastSlashIndex = currentCdnUrl.lastIndexOf('/');
+                const baseCdnUrl = currentCdnUrl.substring(0, lastSlashIndex + 1);
+                
+                // 1. Pythonエンジンの初期化 (indexURLを指定して追加パーツのダウンロード元を揃える)
+                let pyodide = await loadPyodide({ indexURL: baseCdnUrl });
                 
                 document.getElementById('loading').innerText = "ライブラリをロード中...";
                 // 2. 必要な周辺パーツをまとめて読み込む

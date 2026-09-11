@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クラゲのスイカゲーム</title>
+    <!-- タイムアウトしにくい、一番太い配信ルートに変更しました -->
+    <script src="https://cloudflare.com"></script>
+    <style>
+        body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
+        #canvas { border: 2px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); background-color: #111; }
+        #loading { position: absolute; font-size: 24px; z-index: 10; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="loading">ゲームエンジンの準備中... (約20秒)</div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <script>
+        async function main() {
+            try {
+                let pyodide = await loadPyodide();
+                document.getElementById('loading').innerText = "ライブラリをロード中...";
+                await pyodide.loadPackage(["pygame", "numpy", "opencv-python", "micropip"]);
+                
+                document.getElementById('loading').innerText = "物理演算エンジンを設置中...";
+                await pyodide.runPythonAsync(`
+                    import micropip
+                    await micropip.install('pymunk')
+                `);
+
+                document.getElementById('loading').innerText = "クラゲ達を呼び出し中...";
+                const response = await fetch('main.py');
+                const code = await response.text();
+
+                document.getElementById('loading').style.display = 'none';
+                await pyodide.runPythonAsync(code);
+
+            } catch (error) {
+                document.getElementById('loading').innerText = "読み込みエラーが発生しました。ページを再読み込みしてください。";
+                console.error(error);
+            }
+        }
+        main();
+    </script>
+</body>
+</html>

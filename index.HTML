@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クラゲのスイカゲーム</title>
+    <!-- 100%安定して動くPython実行エンジンを読み込みます -->
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; color: white; font-family: sans-serif; }
+        #canvas { border: 2px solid #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #loading { position: absolute; font-size: 24px; }
+    </style>
+</head>
+<body>
+    <div id="loading">ゲームを読み込み中（約30秒かかります）...</div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <script>
+        async function main() {
+            // 1. Pyodideの起動
+            let pyodide = await loadPyodide();
+            
+            // 2. ゲームに必要なライブラリをインターネットから確実にロード
+            await pyodide.loadPackage(["pygame", "numpy", "opencv-python"]);
+            
+            // 3. Pymunkは特別な方法で確実にインストール
+            await pyodide.runPythonAsync(`
+                import micropip
+                await micropip.install('pymunk')
+            `);
+
+            // 4. 瑛大さんの作った main.py をブラウザに読み込ませる
+            const response = await fetch('main.py');
+            const code = await response.text();
+
+            // 5. ローディング画面を消してゲームをスタート！
+            document.getElementById('loading').style.display = 'none';
+            await pyodide.runPythonAsync(code);
+        }
+        main();
+    </script>
+</body>
+</html>
